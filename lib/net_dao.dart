@@ -13,7 +13,7 @@ NetUtils get netUtils => NetUtils();
 class NetUtils extends DataUtilsBasic {
   static NetUtils? _instance;
   XHDioUtil _xhDioUtil;
-
+  VoidCallback? tokenExpiredCallBack;
   NetUtils._(this._xhDioUtil);
 
   static Map<String, Object> optHeader = <String, Object>{
@@ -43,8 +43,19 @@ class NetUtils extends DataUtilsBasic {
     _xhDioUtil.commonHeaders.remove(DataUtilsBasic.X_TOKEN);
   }
 
+  void setTokenExpiredCallBack(VoidCallback voidCallback){
+    tokenExpiredCallBack = voidCallback;
+  }
+
+
+  @override
+  void tokenExpired() {
+    tokenExpiredCallBack?.call();
+  }
+
 
   Future<GetCheckVersion?> getCheckVersion({required String url,required String packageName,required String buildNumber,bool isShowToast = true}) async {
+
     GetCheckVersion? getCheckVersion = await commonHandle<GetCheckVersion>(() {
       return _xhDioUtil.request(url, method: DioMethod.get,params: {
         "packageName": packageName,

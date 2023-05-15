@@ -39,6 +39,8 @@ class CheckVersion {
   String? description;
   String? fileUrl;
   int? sort;
+  ///是否强制更新 1:是 0:否
+  int? isForce;
 
   CheckVersion(
       {this.id,
@@ -51,6 +53,7 @@ class CheckVersion {
       this.versionCode,
       this.description,
       this.fileUrl,
+      this.isForce,
       this.sort});
 
   CheckVersion.fromJson(Map<String, dynamic> json) {
@@ -65,6 +68,7 @@ class CheckVersion {
     description = json['description'];
     fileUrl = json['fileUrl'];
     sort = json['sort'];
+    isForce = json['isForce'];
   }
 
   Map<String, dynamic> toJson() {
@@ -80,6 +84,7 @@ class CheckVersion {
     data['description'] = description;
     data['fileUrl'] = fileUrl;
     data['sort'] = sort;
+    data['isForce'] = isForce;
     return data;
   }
 }
