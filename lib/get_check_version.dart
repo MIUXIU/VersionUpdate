@@ -38,6 +38,7 @@ class CheckVersion {
   int? versionCode;
   String? description;
   String? fileUrl;
+  String? storeUrl;
   int? sort;
   ///是否强制更新 1:是 0:否
   int? isForce;
@@ -67,6 +68,7 @@ class CheckVersion {
     versionCode = json['versionCode'];
     description = json['description'];
     fileUrl = json['fileUrl'];
+    storeUrl = json['storeUrl'];
     sort = json['sort'];
     isForce = json['isForce'];
   }
@@ -83,6 +85,7 @@ class CheckVersion {
     data['versionCode'] = versionCode;
     data['description'] = description;
     data['fileUrl'] = fileUrl;
+    data['storeUrl'] = storeUrl;
     data['sort'] = sort;
     data['isForce'] = isForce;
     return data;

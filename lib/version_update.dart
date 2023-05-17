@@ -104,7 +104,9 @@ class VersionUpdate {
 
     if (Platform.isIOS) {
       bool isForce = _checkVersion.isForce == 1;
+      Uri uri = Uri.parse(_checkVersion.storeUrl ?? "");
       if (isForce) {
+        Logger.log("IOS force Update");
         dialogContent.value = AlertDialog(
           title: const Text("需更新应用版本后使用"),
           content: Text(_checkVersion.description ?? "当前应用有新的版本"),
@@ -112,14 +114,12 @@ class VersionUpdate {
             TextButton(
                 child: const Text("确定"),
                 onPressed: () async {
-                  Uri uri = Uri.parse(_checkVersion.fileUrl ?? "");
-                  bool result = await launchUrl(uri);
-                  if(!result){
-                    Logger.error("launchUrl error");
-                    if(context.mounted) {
-                      Navigator.pop(context, false);
-                    }
+                  try {
+                     launchUrl(uri);
+                  } catch (e) {
+                    Logger.error("launchUrl error: $e");
                   }
+
                   versionUpdateStatus = VersionUpdateStatus.init;
                   return;
                 }),
@@ -129,10 +129,14 @@ class VersionUpdate {
           showUpdateDialog(context, _checkVersion);
         }
       } else {
-        ToastUtil.show("请通过应用市场进行更新！");
-        Uri uri = Uri.parse(_checkVersion.fileUrl ?? "");
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri);
+        Logger.log("IOS Update");
+        if(showTips) {
+          ToastUtil.show("应用有新版本，请通过应用市场进行更新");
+          try {
+             launchUrl(uri);
+          } catch (e) {
+            Logger.error("launchUrl error: $e");
+          }
         }
       }
 
