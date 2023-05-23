@@ -30,6 +30,20 @@ A Dio Utils
 
 ```
 
+AndroidManifest.xml  application结点下添加
+```
+
+       <provider
+           android:name="sk.fourq.otaupdate.OtaUpdateFileProvider"
+           android:authorities="${applicationId}.ota_update_provider"
+           android:exported="false"
+           android:grantUriPermissions="true">
+           <meta-data
+               android:name="android.support.FILE_PROVIDER_PATHS"
+               android:resource="@xml/filepaths" />
+       </provider>
+```
+
 
 
 
