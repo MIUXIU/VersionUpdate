@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:version_update/get_check_version.dart';
+import 'package:version_update/src/get_check_version.dart';
 import 'package:xh_dio_utils/base_info.dart';
 import 'package:xh_dio_utils/data_utils_constant.dart';
 import 'package:xh_dio_utils/xh_dio_utils.dart';
@@ -10,7 +10,7 @@ typedef Success<T> = Function(T data);
 
 NetUtils get netUtils => NetUtils();
 
-class NetUtils extends DataUtilsBasic {
+class NetUtils extends DataUtilsBasic<BaseInfo> {
   static NetUtils? _instance;
   XHDioUtil _xhDioUtil;
   VoidCallback? tokenExpiredCallBack;

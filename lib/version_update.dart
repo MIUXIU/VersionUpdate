@@ -8,11 +8,11 @@ import 'package:get/state_manager.dart';
 import 'package:ota_update/ota_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:version_update/get_check_version.dart';
-import 'package:version_update/net_dao.dart';
-import 'package:xh_dio_utils/toast_util.dart';
+import 'package:version_update/src/get_check_version.dart';
 
-import 'permission_utils.dart';
+import 'src/net_dao.dart';
+import 'src/permission_utils.dart';
+import 'package:toast_utils/toast_utils.dart';
 export 'package:ota_update/ota_update.dart';
 
 typedef VersionUpdateCallBack = Function(OtaEvent event);
@@ -130,13 +130,29 @@ class VersionUpdate {
         }
       } else {
         Logger.log("IOS Update");
-        if(showTips) {
-          ToastUtil.show("应用有新版本，请通过应用市场进行更新");
-          try {
-             launchUrl(uri);
-          } catch (e) {
-            Logger.error("launchUrl error: $e");
-          }
+        // if(showTips) {
+        //   ToastUtil.show("应用有新版本，请通过应用市场进行更新");
+        // }
+        dialogContent.value = AlertDialog(
+          title: const Text("有可更新的应用版本"),
+          content: Text(_checkVersion.description ?? "当前应用有新的版本"),
+          actions: [
+            TextButton(
+                child: const Text("确定"),
+                onPressed: () async {
+                  try {
+                    launchUrl(uri);
+                  } catch (e) {
+                    Logger.error("launchUrl error: $e");
+                  }
+
+                  versionUpdateStatus = VersionUpdateStatus.init;
+                  return;
+                }),
+          ],
+        );
+        if(context.mounted) {
+          showUpdateDialog(context, _checkVersion);
         }
       }
 

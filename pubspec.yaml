@@ -1,6 +1,6 @@
 name: version_update
 description: A new Flutter package project.
-version: 0.0.1
+version: 1.1.0
 homepage: https://github.com/MIUXIU/VersionUpdate
 
 environment:
@@ -10,21 +10,34 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
   fluttertoast: ^8.2.1
   get: ^4.6.5
   ota_update: ^4.0.3
   package_info_plus: ^4.0.0
   permission_handler: ^10.2.0
   url_launcher: ^6.1.11
+  dio: ^5.1.2
   xh_dio_utils:
     git:
       url: https://github.com/MIUXIU/XHDioUtils
-      ref: v1.0.1
+      ref: v1.1.0
+  toast_utils:
+    git:
+      url: https://github.com/MIUXIU/ToastUtils
+      ref: v1.1.0
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^2.0.0
+#  xh_dio_utils:
+#    path: /Users/zrzzz/FlutterLib/xh_dio_utils
+
+#  toast_utils:
+#    path: /Users/zrzzz/FlutterLib/toast_utils
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

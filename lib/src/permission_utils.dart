@@ -1,5 +1,5 @@
 import 'package:permission_handler/permission_handler.dart';
-import 'package:xh_dio_utils/toast_util.dart';
+import 'package:toast_utils/toast_utils.dart';
 
 
 /// 申请相机权限
