@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:version_update/src/get_check_version.dart';
+import 'package:version_update/version_update.dart';
 import 'package:xh_dio_utils/base_info.dart';
 import 'package:xh_dio_utils/data_utils_constant.dart';
 import 'package:xh_dio_utils/xh_dio_utils.dart';
@@ -14,6 +13,7 @@ class NetUtils extends DataUtilsBasic<BaseInfo> {
   static NetUtils? _instance;
   XHDioUtil _xhDioUtil;
   VoidCallback? tokenExpiredCallBack;
+
   NetUtils._(this._xhDioUtil);
 
   static Map<String, Object> optHeader = <String, Object>{
@@ -43,30 +43,26 @@ class NetUtils extends DataUtilsBasic<BaseInfo> {
     _xhDioUtil.commonHeaders.remove(DataUtilsBasic.X_TOKEN);
   }
 
-  void setTokenExpiredCallBack(VoidCallback voidCallback){
+  void setTokenExpiredCallBack(VoidCallback voidCallback) {
     tokenExpiredCallBack = voidCallback;
   }
-
 
   @override
   void tokenExpired() {
     tokenExpiredCallBack?.call();
   }
 
-
-  Future<GetCheckVersion?> getCheckVersion({required String url,required String packageName,required String buildNumber,bool isShowToast = true}) async {
-
-    GetCheckVersion? getCheckVersion = await commonHandle<GetCheckVersion>(() {
-      return _xhDioUtil.request(url, method: DioMethod.get,params: {
-        "packageName": packageName,
-        "systemName": Platform.isAndroid
-            ? "Android"
-            : Platform.isIOS
-            ? "IOS"
-            : "",
-        "versionCode": buildNumber,
-      }, beanFromJson: GetCheckVersion.fromJson);
-    },isShowToast: isShowToast);
+  Future<AbstractGetCheckVersion?> getCheckVersion(
+      {required String url,
+      Map<String, dynamic>? params,
+      FormJson? formJson,
+      bool isShowToast = true}) async {
+    AbstractGetCheckVersion? getCheckVersion = await commonHandle<AbstractGetCheckVersion>(() {
+      return _xhDioUtil.request(url,
+          method: DioMethod.get,
+          params: params,
+          beanFromJson: formJson ?? GetCheckVersion.fromJson);
+    }, isShowToast: isShowToast);
     return getCheckVersion;
   }
 
@@ -95,11 +91,11 @@ class NetUtils extends DataUtilsBasic<BaseInfo> {
 }
 
 class Logger {
-  static void log(Object? object){
-    debugPrint(object?.toString());
+  static void log(Object? object) {
+    debugPrint("VersionUpdate $object");
   }
 
-  static void error(Object? object){
-    debugPrint(object?.toString());
+  static void error(Object? object) {
+    debugPrint("VersionUpdate $object");
   }
 }

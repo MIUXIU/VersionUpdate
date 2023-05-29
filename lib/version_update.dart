@@ -1,7 +1,8 @@
 library version_update;
 
+import 'dart:async';
 import 'dart:io';
-
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/state_manager.dart';
@@ -14,8 +15,10 @@ import 'src/net_dao.dart';
 import 'src/permission_utils.dart';
 import 'package:toast_utils/toast_utils.dart';
 export 'package:ota_update/ota_update.dart';
+export 'package:version_update/src/get_check_version.dart';
 
 typedef VersionUpdateCallBack = Function(OtaEvent event);
+typedef FormJson = AbstractGetCheckVersion Function(Map<String, dynamic> map);
 
 enum VersionUpdateStatus {
   init,
@@ -25,14 +28,22 @@ enum VersionUpdateStatus {
 }
 
 class VersionUpdate {
+  static const String updateVersionDialogKey = "updateVersionDialogKey";
   static VersionUpdate? _instance;
   String getVersionUrl;
   VersionUpdateCallBack? versionUpdateCallBack;
+  FormJson? formJson;
   VersionUpdateStatus versionUpdateStatus = VersionUpdateStatus.init;
   Rx<Widget> dialogContent = const AlertDialog().obs;
+  RxString rxContent = "".obs;
+  String content = "";
   RxDouble downValue = 0.0.obs;
   CheckVersion _checkVersion = CheckVersion();
   bool isDialogShowing = false;
+  int? _autoDismissSeconds;
+
+  Map<String, dynamic>? customParams;
+  Timer? autoDismissTimer;
 
   VersionUpdate._(this.getVersionUrl);
 
@@ -49,12 +60,21 @@ class VersionUpdate {
     this.versionUpdateCallBack = versionUpdateCallBack;
   }
 
+  void setFormJson(FormJson formJson) {
+    this.formJson = formJson;
+  }
+
+  void setCustomParams(Map<String, dynamic>? params) {
+    customParams = params;
+  }
+
   VersionUpdateStatus getVersionUpdateStatus() {
     return versionUpdateStatus;
   }
 
   Future<void> check(
-      {bool showTips = true, bool download = true, VoidCallback? voidCallback, required BuildContext context}) async {
+      {bool showTips = true, bool download = true, VoidCallback? voidCallback, required BuildContext context, int? autoDismissSeconds}) async {
+    this._autoDismissSeconds = autoDismissSeconds;
     if (versionUpdateStatus != VersionUpdateStatus.init) {
       showUpdateDialog(context, _checkVersion);
       return;
@@ -69,15 +89,22 @@ class VersionUpdate {
     }
 
     versionUpdateStatus = VersionUpdateStatus.netRequest;
-    GetCheckVersion? getCheckVersion = await netUtils.getCheckVersion(
-        packageName: packageName, buildNumber: buildNumber, isShowToast: showTips, url: getVersionUrl);
 
+    Map<String, dynamic>? params = {
+      "packageName": packageName,
+      "systemName": Platform.isAndroid ? "Android" : (Platform.isIOS ? "IOS" : ""),
+      "versionCode": buildNumber,
+    };
+
+    AbstractGetCheckVersion? getCheckVersion = await netUtils.getCheckVersion(
+        formJson: formJson, params: customParams ?? params, isShowToast: showTips, url: getVersionUrl);
     if (getCheckVersion == null) {
       versionUpdateStatus = VersionUpdateStatus.init;
       return;
     }
     if (getCheckVersion.checkVersion == null) {
       if (showTips) {
+        Logger.log("ssss: ${getCheckVersion.toJson()}");
         ToastUtil.show("当前已是最新版本");
       }
       versionUpdateStatus = VersionUpdateStatus.init;
@@ -101,7 +128,6 @@ class VersionUpdate {
       return;
     }
 
-
     if (Platform.isIOS) {
       bool isForce = _checkVersion.isForce == 1;
       Uri uri = Uri.parse(_checkVersion.storeUrl ?? "");
@@ -115,7 +141,7 @@ class VersionUpdate {
                 child: const Text("确定"),
                 onPressed: () async {
                   try {
-                     launchUrl(uri);
+                    launchUrl(uri);
                   } catch (e) {
                     Logger.error("launchUrl error: $e");
                   }
@@ -125,7 +151,7 @@ class VersionUpdate {
                 }),
           ],
         );
-        if(context.mounted) {
+        if (context.mounted) {
           showUpdateDialog(context, _checkVersion);
         }
       } else {
@@ -151,7 +177,7 @@ class VersionUpdate {
                 }),
           ],
         );
-        if(context.mounted) {
+        if (context.mounted) {
           showUpdateDialog(context, _checkVersion);
         }
       }
@@ -170,7 +196,7 @@ class VersionUpdate {
       }
     }
 
-    if(context.mounted) {
+    if (context.mounted) {
       _dialogContentShowUpdateTips(_checkVersion, context);
     }
 
@@ -187,35 +213,60 @@ class VersionUpdate {
   Future<void> showUpdateDialog(BuildContext context, CheckVersion checkVersion) async {
     bool isForce = checkVersion.isForce == 1;
     isDialogShowing = true;
-    showDialog(
-        context: context,
-        barrierDismissible: !isForce,
-        builder: (BuildContext context) {
-          return WillPopScope(
-            onWillPop: () async {
-              return !isForce;
-            },
-            child: Obx(() {
-              return dialogContent.value;
-            }),
-          );
-        }).then((value) => isDialogShowing = false);
+    autoDismissTimer?.cancel();
+    autoDismissTimer = null;
+    if (_autoDismissSeconds != null && (_autoDismissSeconds ?? 0) > 0) {
+      int currentAutoDismissSeconds = _autoDismissSeconds ?? 0;
+      autoDismissTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (currentAutoDismissSeconds == 0) {
+          SmartDialog.dismiss(tag: updateVersionDialogKey);
+          autoDismissTimer?.cancel();
+          autoDismissTimer = null;
+          return;
+        }
+        rxContent.value = "$content\n$currentAutoDismissSeconds秒后自动关闭";
+        currentAutoDismissSeconds--;
+      });
+    }
+    SmartDialog.show(
+      builder: (BuildContext context) {
+        return WillPopScope(
+          onWillPop: () async {
+            return !isForce;
+          },
+          child: Obx(() {
+            return dialogContent.value;
+          }),
+        );
+      },
+      backDismiss: !isForce,
+      clickMaskDismiss: !isForce,
+      tag: updateVersionDialogKey,
+    ).then((value){
+      isDialogShowing = false;
+      autoDismissTimer?.cancel();
+      autoDismissTimer = null;
+    });
   }
 
   _dialogContentShowUpdateTips(CheckVersion checkVersion, BuildContext context) {
     bool isForce = checkVersion.isForce == 1;
+    content = checkVersion.description ?? "当前应用有新的版本";
+    rxContent.value = content;
     dialogContent.value = AlertDialog(
       title: Text(isForce ? "需更新应用版本后使用" : "有可更新的应用版本"),
-      content: Text(checkVersion.description ?? "当前应用有新的版本"),
+      content: Obx(() {
+        return Text(rxContent.value);
+      }),
       actions: [
         isForce
             ? const SizedBox()
             : TextButton(
-                child: const Text("取消"),
-                onPressed: () {
-                  versionUpdateStatus = VersionUpdateStatus.init;
-                  Navigator.pop(context, false);
-                }),
+            child: const Text("取消"),
+            onPressed: () {
+              versionUpdateStatus = VersionUpdateStatus.init;
+              SmartDialog.dismiss(tag: updateVersionDialogKey);
+            }),
         TextButton(
             child: const Text("确定"),
             onPressed: () async {
@@ -232,6 +283,8 @@ class VersionUpdate {
   }
 
   void _startDownLoad(CheckVersion checkVersion, BuildContext context) {
+    autoDismissTimer?.cancel();
+    autoDismissTimer = null;
     bool isForce = checkVersion.isForce == 1;
     try {
       ToastUtil.show("后台下载更新中……", toastLength: Toast.LENGTH_LONG);
@@ -247,10 +300,10 @@ class VersionUpdate {
           isForce
               ? const SizedBox()
               : TextButton(
-                  child: const Text("后台下载更新"),
-                  onPressed: () {
-                    Navigator.pop(context, false);
-                  }),
+              child: const Text("后台下载更新"),
+              onPressed: () {
+                SmartDialog.dismiss(tag: updateVersionDialogKey);
+              }),
         ],
       );
 
@@ -260,7 +313,7 @@ class VersionUpdate {
         destinationFilename: 'water_new.apk',
       )
           .listen(
-        (OtaEvent event) {
+            (OtaEvent event) {
           versionUpdateCallBack?.call(event);
           Logger.log('OTA status: ${event.status} : ${event.value} \n');
           switch (event.status) {
@@ -284,9 +337,7 @@ class VersionUpdate {
                 if (isForce) {
                   _dialogContentShowUpdateTips(checkVersion, context);
                 } else {
-                  if (isDialogShowing) {
-                    Navigator.pop(context);
-                  }
+                  SmartDialog.dismiss(tag: updateVersionDialogKey);
                 }
               });
 
