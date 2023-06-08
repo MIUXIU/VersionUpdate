@@ -2,6 +2,7 @@ library version_update;
 
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -10,7 +11,7 @@ import 'package:ota_update/ota_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:version_update/src/get_check_version.dart';
-
+import 'package:get/get.dart';
 import 'src/net_dao.dart';
 import 'src/permission_utils.dart';
 import 'package:toast_utils/toast_utils.dart';
@@ -35,6 +36,8 @@ class VersionUpdate {
   FormJson? formJson;
   VersionUpdateStatus versionUpdateStatus = VersionUpdateStatus.init;
   Rx<Widget> dialogContent = const AlertDialog().obs;
+  final FocusNode _buttonConfirmFocusNode = FocusNode();
+  final FocusNode _buttonCancelFocusNode = FocusNode();
   RxString rxContent = "".obs;
   String content = "";
   RxDouble downValue = 0.0.obs;
@@ -73,7 +76,11 @@ class VersionUpdate {
   }
 
   Future<void> check(
-      {bool showTips = true, bool download = true, VoidCallback? voidCallback, required BuildContext context, int? autoDismissSeconds}) async {
+      {bool showTips = true,
+      bool download = true,
+      VoidCallback? voidCallback,
+      required BuildContext context,
+      int? autoDismissSeconds}) async {
     this._autoDismissSeconds = autoDismissSeconds;
     if (versionUpdateStatus != VersionUpdateStatus.init) {
       showUpdateDialog(context, _checkVersion);
@@ -104,7 +111,6 @@ class VersionUpdate {
     }
     if (getCheckVersion.checkVersion == null) {
       if (showTips) {
-        Logger.log("ssss: ${getCheckVersion.toJson()}");
         ToastUtil.show("当前已是最新版本");
       }
       versionUpdateStatus = VersionUpdateStatus.init;
@@ -242,10 +248,16 @@ class VersionUpdate {
       backDismiss: !isForce,
       clickMaskDismiss: !isForce,
       tag: updateVersionDialogKey,
-    ).then((value){
+    ).then((value) {
       isDialogShowing = false;
       autoDismissTimer?.cancel();
       autoDismissTimer = null;
+    });
+
+    ///TV 上焦点
+    Future.delayed(const Duration(milliseconds: 500)).then((value) {
+      // 在需要时，使用以下代码将焦点设置到按钮上
+      FocusScope.of(context).requestFocus(isForce? _buttonConfirmFocusNode: _buttonCancelFocusNode);
     });
   }
 
@@ -261,23 +273,28 @@ class VersionUpdate {
       actions: [
         isForce
             ? const SizedBox()
-            : TextButton(
-            child: const Text("取消"),
-            onPressed: () {
+            : keyButton(
+                focusNode: _buttonCancelFocusNode,
+                child: const Text("取消"),
+                onPressed: () {
+                  versionUpdateStatus = VersionUpdateStatus.init;
+                  SmartDialog.dismiss(tag: updateVersionDialogKey);
+                }),
+
+        keyButton(
+          autofocus: true,
+          focusNode: _buttonConfirmFocusNode,
+          onPressed: () async {
+            if (!await requestInstallPackagesPermission()) {
+              ToastUtil.show("请赋予安装权限后，继续尝试更新！");
               versionUpdateStatus = VersionUpdateStatus.init;
-              SmartDialog.dismiss(tag: updateVersionDialogKey);
-            }),
-        TextButton(
-            child: const Text("确定"),
-            onPressed: () async {
-              if (!await requestInstallPackagesPermission()) {
-                ToastUtil.show("请赋予安装权限后，继续尝试更新！");
-                versionUpdateStatus = VersionUpdateStatus.init;
-                return;
-              }
-              // ignore: use_build_context_synchronously
-              _startDownLoad(checkVersion, context);
-            }),
+              return;
+            }
+            // ignore: use_build_context_synchronously
+            _startDownLoad(checkVersion, context);
+          },
+          child: const Text("确定"),
+        ),
       ],
     );
   }
@@ -299,11 +316,11 @@ class VersionUpdate {
         actions: [
           isForce
               ? const SizedBox()
-              : TextButton(
-              child: const Text("后台下载更新"),
-              onPressed: () {
-                SmartDialog.dismiss(tag: updateVersionDialogKey);
-              }),
+              : keyButton(
+                  child: const Text("后台下载更新"),
+                  onPressed: () {
+                    SmartDialog.dismiss(tag: updateVersionDialogKey);
+                  }),
         ],
       );
 
@@ -313,7 +330,7 @@ class VersionUpdate {
         destinationFilename: 'water_new.apk',
       )
           .listen(
-            (OtaEvent event) {
+        (OtaEvent event) {
           versionUpdateCallBack?.call(event);
           Logger.log('OTA status: ${event.status} : ${event.value} \n');
           switch (event.status) {
@@ -364,5 +381,25 @@ class VersionUpdate {
     } catch (e) {
       Logger.log('Failed to make OTA update. Details: $e');
     }
+  }
+
+  ///适配TV端按钮
+  Widget keyButton({VoidCallback? onPressed, required Widget child, bool autofocus = false, FocusNode? focusNode}) {
+    return RawKeyboardListener(
+      focusNode: FocusNode(),
+      onKey: (RawKeyEvent event) async {
+        if (event is RawKeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.select) {
+            onPressed?.call();
+          }
+        }
+      },
+      child: MaterialButton(
+        autofocus: autofocus,
+        onPressed: onPressed,
+        focusNode: focusNode,
+        child: child,
+      ),
+    );
   }
 }
